@@ -85,6 +85,12 @@ async function handleDev(args: string[]): Promise<void> {
     });
     await router.initialize();
 
+    // Create .vx directory for dev assets
+    const vxDir = './.vx';
+    if (!fs.existsSync(vxDir)) {
+      fs.mkdirSync(vxDir, { recursive: true });
+    }
+
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url!, `http://localhost:${port}`);
       const pathname = url.pathname;
@@ -106,6 +112,18 @@ async function handleDev(args: string[]): Promise<void> {
                 target: TargetPlatform.BROWSER,
                 dev: true
               });
+
+              // Save assets to .vx for dev
+              if (result.files && result.files.size > 0) {
+                for (const [filePath, content] of result.files) {
+                  const fullPath = path.join(vxDir, filePath);
+                  const dir = path.dirname(fullPath);
+                  if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                  }
+                  fs.writeFileSync(fullPath, content);
+                }
+              }
 
               // Return compiled HTML
               res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -145,6 +163,22 @@ async function handleDev(args: string[]): Promise<void> {
           } else {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
             res.end('Page file not found');
+          }
+        } else if (pathname.startsWith('/.vx/')) {
+          // Serve static files from .vx
+          const filePath = path.join('.', pathname);
+          if (fs.existsSync(filePath)) {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            const ext = path.extname(filePath);
+            let contentType = 'text/plain';
+            if (ext === '.js') contentType = 'application/javascript';
+            else if (ext === '.css') contentType = 'text/css';
+            else if (ext === '.html') contentType = 'text/html';
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content);
+          } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('File not found');
           }
         } else {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -187,12 +221,13 @@ async function handleBuild(args: string[]): Promise<void> {
   const { TargetPlatform } = await import('../compiler/types');
 
   try {
-    const distDir = './dist';
+    const distDir = './.vx';
 
-    // Create dist directory
-    if (!fs.existsSync(distDir)) {
-      fs.mkdirSync(distDir, { recursive: true });
+    // Clean and create dist directory
+    if (fs.existsSync(distDir)) {
+      fs.rmSync(distDir, { recursive: true, force: true });
     }
+    fs.mkdirSync(distDir, { recursive: true });
 
     // Check if app.vx exists
     const appFile = './src/app.vx';
@@ -212,32 +247,16 @@ async function handleBuild(args: string[]): Promise<void> {
       minify: true
     });
 
-    // Write files based on compilation result
-    if (result.files && result.files.size > 0) {
-      // Professional build with separate files
-      for (const [filePath, content] of result.files) {
-        const fullPath = path.join(distDir, filePath);
-        const dir = path.dirname(fullPath);
-
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-
-        fs.writeFileSync(fullPath, content);
-        console.log(`   ✓ Generated ${filePath}`);
-      }
-    } else {
-      // Fallback to single file
-      const outputFile = path.join(distDir, 'index.html');
-      fs.writeFileSync(outputFile, result.html);
-    }
+    // For production, always generate single HTML file with inline assets
+    const outputFile = path.join(distDir, 'index.html');
+    fs.writeFileSync(outputFile, result.html);
+    console.log(`   ✓ Generated index.html with inline CSS and JS`);
 
     console.log('✅ Build completed!');
     console.log(`📁 Output directory: ${path.resolve(distDir)}`);
     console.log('\n🎯 Next steps:');
     console.log('   npm run preview  - Preview the production build');
-    console.log('   Deploy the dist/ folder to your hosting provider');
+    console.log('   Deploy the .vx/ folder to your hosting provider');
 
   } catch (error) {
     console.error('❌ Build failed:', error);
@@ -254,17 +273,17 @@ async function handlePreview(args: string[]): Promise<void> {
   const http = await import('http');
   const fs = await import('fs');
   const path = await import('path');
-  const { findAvailablePort, DEFAULT_DEV_PORT } = await import('../utils/port-finder');
+  const { findAvailablePort, DEFAULT_PREVIEW_PORT } = await import('../utils/port-finder');
 
   try {
-    const distDir = './dist';
+    const distDir = './.vx';
 
     if (!fs.existsSync(distDir)) {
-      console.error('❌ No build found. Run "npm run build" first.');
+      console.error('❌ No build found. Run "vx build" first.');
       process.exit(1);
     }
 
-    const port = await findAvailablePort(DEFAULT_DEV_PORT + 1);
+    const port = await findAvailablePort(DEFAULT_PREVIEW_PORT);
 
     const server = http.createServer((req, res) => {
       let filePath = req.url === '/' ? '/index.html' : req.url;
@@ -284,7 +303,7 @@ async function handlePreview(args: string[]): Promise<void> {
       console.log('----------------------------------------------------');
       console.log('🎉 Preview Server started!');
       console.log(`Local: http://localhost:${port}/`);
-      console.log('📁 Serving: ./dist');
+      console.log('📁 Serving: ./.vx');
       console.log('----------------------------------------------------');
     });
 

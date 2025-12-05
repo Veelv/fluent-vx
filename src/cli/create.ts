@@ -58,8 +58,9 @@ function copyTemplateFiles(templateDir: string, targetDir: string, variables: Re
         processStubFiles(fullPath);
       } else if (file.endsWith('.stub')) {
         const relativePath = path.relative(templateDir, fullPath);
-        const ext = path.extname(relativePath.replace('.stub', '')) || '.ts';
-        const destPath = path.join(targetDir, relativePath.replace('.stub', ext));
+        const baseName = relativePath.replace(/\.stub$/, '');
+        const ext = path.extname(baseName) || '.ts';
+        const destPath = path.join(targetDir, baseName + ext);
         let content = fs.readFileSync(fullPath, 'utf-8');
 
         // Replace template variables

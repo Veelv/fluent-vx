@@ -5,6 +5,27 @@ All notable changes to **Fluent VX** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] - 2025-12-05
+
+### ✨ Added
+
+- **Smart .vx Directory**: Build and dev now use `.vx/` directory for assets
+- **Inline Assets**: Production build generates single HTML with inline CSS/JS for better performance
+- **Port Configuration**: Updated default ports (dev: 5002, preview: 4100) with auto-increment
+
+### 🔧 Changed
+
+- **Build Output**: Single optimized HTML file instead of separate assets
+- **Dev Server**: Generates assets in `.vx/` directory for consistency
+- **Preview Server**: Requires build first and uses dedicated port range
+
+### 🐛 Fixed
+
+- **Asset Serving**: Dev server properly serves generated assets
+- **Build Cleanup**: Clean `.vx/` directory before each build
+
+---
+
 ## [0.1.1] - 2025-12-05
 
 ### 🐛 Fixed

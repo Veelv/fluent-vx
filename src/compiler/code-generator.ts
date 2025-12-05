@@ -102,9 +102,15 @@ export class CodeGenerator {
     buffer.push('  <meta name="viewport" content="width=device-width, initial-scale=1.0">');
     buffer.push('  <title>Fluent VX App</title>');
 
-    // Add CSS link if we have styles
+    // Add CSS inline for production, link for dev
     if (this.context.ast.style.content.trim()) {
-      buffer.push('  <link rel="stylesheet" href="./assets/style.css">');
+      if (this.context.options.dev) {
+        buffer.push('  <link rel="stylesheet" href="./.vx/assets/style.css">');
+      } else {
+        buffer.push('  <style>');
+        buffer.push(this.generateCSS());
+        buffer.push('  </style>');
+      }
     }
 
     buffer.push('</head>');
@@ -113,12 +119,14 @@ export class CodeGenerator {
     // Generate view content based on strategy
     buffer.push(this.generateViewHTML());
 
-    // Add JavaScript based on strategy
+    // Add JavaScript inline for production, link for dev
     if (this.needsJavaScript()) {
       if (this.context.options.dev) {
-        buffer.push('  <script type="module" src="./assets/app.js"></script>');
+        buffer.push('  <script type="module" src="./.vx/assets/app.js"></script>');
       } else {
-        buffer.push('  <script src="./assets/app.js"></script>');
+        buffer.push('  <script>');
+        buffer.push(this.generateJavaScript());
+        buffer.push('  </script>');
       }
     }
 

@@ -208,8 +208,9 @@ export async function checkPort(
   return finder.checkPort(port);
 }
 
-// Default port for Fluent VX development server
-export const DEFAULT_DEV_PORT = 5172;
+// Default ports for Fluent VX
+export const DEFAULT_DEV_PORT = 5002;
+export const DEFAULT_PREVIEW_PORT = 4100;
 
 /**
  * Pre-configured port finder for development
