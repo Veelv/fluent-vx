@@ -12,10 +12,11 @@ describe('VX Parser', () => {
     expect(ast).toHaveProperty('view');
 
     expect(ast.data.type).toBe('data');
-    expect(ast.data.variables).toHaveLength(1); // Temporarily accept current behavior
+    expect(ast.data.variables).toHaveLength(2);
     expect(ast.data.variables[0].name).toBe('count');
-    expect(ast.data.variables[0].value.code).toContain('0');
-    expect(ast.data.variables[0].value.code).toContain('Welcome to Fluent VX');
+    expect(ast.data.variables[0].value.code).toBe('0');
+    expect(ast.data.variables[1].name).toBe('greeting');
+    expect(ast.data.variables[1].value.code).toBe('"Welcome to Fluent VX! 🚀"');
 
     expect(ast.style.type).toBe('style');
     expect(ast.style.content).toContain('.counter');

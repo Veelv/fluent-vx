@@ -9,9 +9,9 @@
 #end view
 
 #script
-  // Initialize Fluent VX framework
-  import { VX } from 'fluent-vx';
+   // Initialize Fluent VX framework
+   import { VX } from 'fluent-vx';
 
-  // Manual initialization for full control
-  VX.init();
+   // Manual initialization for full control
+   VX.init();
 #end script

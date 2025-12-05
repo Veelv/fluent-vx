@@ -16,8 +16,16 @@ const VX = {
   init: async () => {
     if (typeof window !== 'undefined') {
       console.log('🚀 Initializing Fluent VX...');
-      const router = new VxRouter();
+
+      // Initialize router
+      const router = new VxRouter({
+        pagesDir: './src/pages' // Default for browser
+      });
       await router.init();
+
+      // Setup client-side routing
+      setupClientSideRouting(router);
+
       console.log('✅ Fluent VX ready!');
       return router;
     }
@@ -26,6 +34,28 @@ const VX = {
   // Manual router creation
   Router: VxRouter
 };
+
+// Setup client-side routing for SPA-like behavior
+function setupClientSideRouting(router: VxRouter) {
+  // Intercept link clicks for client-side navigation
+  document.addEventListener('click', (e) => {
+    const link = (e.target as Element).closest('a');
+    if (link && link.getAttribute('href')?.startsWith('/')) {
+      e.preventDefault();
+      const path = link.getAttribute('href')!;
+      history.pushState(null, '', path);
+      // Trigger route change - in a real implementation, this would re-render the page
+      console.log('Navigating to:', path);
+      // For now, just reload the page to simulate
+      window.location.reload();
+    }
+  });
+
+  // Handle browser back/forward
+  window.addEventListener('popstate', () => {
+    window.location.reload();
+  });
+}
 
 // Auto-initialize on import in browser
 if (typeof window !== 'undefined') {

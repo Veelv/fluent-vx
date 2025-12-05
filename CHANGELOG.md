@@ -5,6 +5,24 @@ All notable changes to **Fluent VX** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-12-05
+
+### 🐛 Fixed
+
+- **Parser**: Fixed `parseDataValue` to correctly parse individual data variables without collecting subsequent declarations
+- **Event Handlers**: Updated event handlers to properly access reactive data through `window.reactiveData`
+- **Data Block Parsing**: Added `tryParseDataBlock` to handle files without data blocks gracefully
+- **Framework Initialization**: Enhanced `VX.init()` with client-side routing setup for SPA-like navigation
+- **Code Generation**: Improved JavaScript generation for better module support in development
+
+### 🔧 Changed
+
+- Parser now correctly handles optional data blocks in `.vx` files
+- Event handlers use reactive data context for proper state updates
+- Framework initialization includes routing and navigation setup
+
+---
+
 ## [0.1.0] - 2024-12-05
 
 ### 🎉 Initial Release

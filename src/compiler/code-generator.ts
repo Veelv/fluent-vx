@@ -115,7 +115,11 @@ export class CodeGenerator {
 
     // Add JavaScript based on strategy
     if (this.needsJavaScript()) {
-      buffer.push('  <script src="./assets/app.js"></script>');
+      if (this.context.options.dev) {
+        buffer.push('  <script type="module" src="./assets/app.js"></script>');
+      } else {
+        buffer.push('  <script src="./assets/app.js"></script>');
+      }
     }
 
     buffer.push('</body>');
@@ -336,10 +340,19 @@ export class CodeGenerator {
       buffer.push(this.generateServerActionCallers());
     }
 
+    // Export VX for module usage
+    buffer.push(`\n// Export VX\nexport { VX };`);
+
+    // Make VX globally available
+    buffer.push(`\n// Global VX\nwindow.VX = VX;`);
+
     // Add script block content
     if (this.context.ast.script.content.trim()) {
       buffer.push(`\n// Script block content\n${this.context.ast.script.content}`);
     }
+
+    // Initialize VX if available
+    buffer.push(`\n// Initialize VX framework\nif (window.VX && window.VX.init) {\n  window.VX.init().catch(console.error);\n}`);
 
     return buffer.join('\n');
   }
@@ -692,7 +705,12 @@ export class CodeGenerator {
           effect.run();
         },
         nextTick: (callback) => setTimeout(callback, 0),
-        batch: (callback) => callback()
+        batch: (callback) => callback(),
+        init: () => {
+          // Initialize framework
+          console.log('Fluent VX initialized');
+          // Could setup client-side routing here if needed
+        }
       };
 
       // Make data reactive (global)
@@ -772,7 +790,9 @@ window.VxRouter = VxRouter;
           const code = eventAttr.getAttribute('data-event-click');
           if (code) {
             try {
-              const fn = new Function('"use strict"; return (' + code + ')');
+              // Transform variable names to use reactive data
+              const transformedCode = code.replace(/\\b(\\w+)\\b/g, 'window.reactiveData.$1');
+              const fn = new Function('"use strict"; ' + transformedCode);
               fn();
             } catch (error) {
               console.error('Secure event execution failed:', error);
@@ -810,8 +830,9 @@ window.VxRouter = VxRouter;
    */
   private needsJavaScript(): boolean {
     return this.context.features.reactive ||
-           this.context.features.events ||
-           this.context.features.serverActions;
+            this.context.features.events ||
+            this.context.features.serverActions ||
+            this.context.ast.script.content.trim() !== '';
   }
 
   /**

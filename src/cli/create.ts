@@ -58,8 +58,17 @@ function copyTemplateFiles(templateDir: string, targetDir: string, variables: Re
         processStubFiles(fullPath);
       } else if (file.endsWith('.stub')) {
         const relativePath = path.relative(templateDir, fullPath);
-        const destPath = path.join(targetDir, relativePath.replace('.stub', '.ts'));
-        copyRecursive(fullPath, destPath);
+        const ext = path.extname(relativePath.replace('.stub', '')) || '.ts';
+        const destPath = path.join(targetDir, relativePath.replace('.stub', ext));
+        let content = fs.readFileSync(fullPath, 'utf-8');
+
+        // Replace template variables
+        for (const [key, value] of Object.entries(variables)) {
+          content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
+        }
+
+        fs.writeFileSync(destPath, content);
+        console.log(`✅ Processed template: ${path.relative(process.cwd(), destPath)}`);
       }
     }
   }

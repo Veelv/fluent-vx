@@ -11,24 +11,24 @@ export class Parser {
 
   /**
    * Parses the input .vx source code into an AST.
-   * @param input The raw .vx file content
-   * @returns The complete AST
-   */
-  parse(input: string): AST {
-    // Tokenize the input
-    const lexer = new Lexer(input);
-    this.tokens = lexer.tokenize();
-    this.position = 0;
+    * @param input The raw .vx file content
+    * @returns The complete AST
+    */
+   parse(input: string): AST {
+     // Tokenize the input
+     const lexer = new Lexer(input);
+     this.tokens = lexer.tokenize();
+     this.position = 0;
 
-    // Parse each block in order
-    const data = this.parseDataBlock();
-    const style = this.tryParseStyleBlock();
-    const view = this.parseViewBlock();
-    const script = this.tryParseScriptBlock();
-    const serverActions = this.tryParseServerActionsBlock();
+     // Parse each block in order
+     const data = this.tryParseDataBlock();
+     const style = this.tryParseStyleBlock();
+     const view = this.parseViewBlock();
+     const script = this.tryParseScriptBlock();
+     const serverActions = this.tryParseServerActionsBlock();
 
-    return { data, style, view, script, serverActions };
-  }
+     return { data, style, view, script, serverActions };
+   }
 
   private currentToken(): Token {
     if (this.position >= this.tokens.length) {
@@ -113,6 +113,18 @@ export class Parser {
     return { type: 'data', variables };
   }
 
+  private tryParseDataBlock(): DataBlock {
+    // Skip leading comments
+    while (this.currentToken().type === TokenType.COMMENT) {
+      this.position++;
+    }
+
+    if (this.currentToken().type === TokenType.HASH && this.peek().value === 'data') {
+      return this.parseDataBlock();
+    }
+    return { type: 'data', variables: [] };
+  }
+
 
   private parseStyleBlock(): StyleBlock {
     this.consume(TokenType.HASH);
@@ -141,6 +153,11 @@ export class Parser {
   }
 
   private tryParseStyleBlock(): StyleBlock {
+    // Skip leading comments
+    while (this.currentToken().type === TokenType.COMMENT) {
+      this.position++;
+    }
+
     if (this.currentToken().type === TokenType.HASH && this.peek().value === 'style') {
       return this.parseStyleBlock();
     }
@@ -174,6 +191,11 @@ export class Parser {
   }
 
   private tryParseScriptBlock(): ScriptBlock {
+    // Skip leading comments
+    while (this.currentToken().type === TokenType.COMMENT) {
+      this.position++;
+    }
+
     if (this.currentToken().type === TokenType.HASH && this.peek().value === 'script') {
       return this.parseScriptBlock();
     }
@@ -185,6 +207,11 @@ export class Parser {
    * @returns The parsed ViewBlock AST node
    */
   private parseViewBlock(): ViewBlock {
+    // Skip any leading comments
+    while (this.currentToken().type === TokenType.COMMENT) {
+      this.position++;
+    }
+
     // Consume #view
     this.consume(TokenType.HASH);
     this.consumeIdentifier('view');
@@ -656,6 +683,11 @@ export class Parser {
 
       // Stop at newline (end of variable declaration)
       if (token.type === TokenType.EOF || (token.value === '\n' && code.trim() !== '')) {
+        break;
+      }
+
+      // Stop at next identifier (end of current expression)
+      if (token.type === TokenType.IDENTIFIER) {
         break;
       }
 
