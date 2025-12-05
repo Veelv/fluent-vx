@@ -60,7 +60,8 @@ function copyTemplateFiles(templateDir: string, targetDir: string, variables: Re
         const relativePath = path.relative(templateDir, fullPath);
         const baseName = relativePath.replace(/\.stub$/, '');
         const ext = path.extname(baseName) || '.ts';
-        const destPath = path.join(targetDir, baseName + ext);
+        const finalName = path.basename(baseName, ext) + ext;
+        const destPath = path.join(targetDir, finalName);
         let content = fs.readFileSync(fullPath, 'utf-8');
 
         // Replace template variables

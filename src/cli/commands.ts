@@ -91,6 +91,68 @@ async function handleDev(args: string[]): Promise<void> {
       fs.mkdirSync(vxDir, { recursive: true });
     }
 
+    // Generate global assets for dev
+    const assetsDir = path.join(vxDir, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+
+    // Generate global CSS and JS for dev
+    const globalCss = `
+/* Fluent VX Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.vx-app {
+  min-height: 100vh;
+}
+    `.trim();
+
+    const globalJs = `
+// Fluent VX Runtime
+console.log('Fluent VX Dev Runtime loaded');
+
+// Global reactive data
+window.VX = {
+  reactive: function(target) {
+    return new Proxy(target, {
+      get: function(obj, prop) {
+        return obj[prop];
+      },
+      set: function(obj, prop, value) {
+        obj[prop] = value;
+        // Trigger updates
+        document.querySelectorAll('[data-vx-text]').forEach(el => {
+          const expr = el.getAttribute('data-vx-text');
+          if (expr === prop) {
+            el.textContent = value;
+          }
+        });
+        return true;
+      }
+    });
+  },
+  effect: function(fn) {
+    fn();
+  }
+};
+
+// Initialize reactive data
+window.reactiveData = window.VX.reactive({});
+    `.trim();
+
+    fs.writeFileSync(path.join(assetsDir, 'style.css'), globalCss);
+    fs.writeFileSync(path.join(assetsDir, 'app.js'), globalJs);
+
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url!, `http://localhost:${port}`);
       const pathname = url.pathname;
@@ -229,28 +291,46 @@ async function handleBuild(args: string[]): Promise<void> {
     }
     fs.mkdirSync(distDir, { recursive: true });
 
-    // Check if app.vx exists
-    const appFile = './src/app.vx';
-    if (!fs.existsSync(appFile)) {
-      console.error('❌ No app.vx found. Make sure you have a main application file.');
-      process.exit(1);
+    // Initialize router to discover routes
+    const { VxRouter } = await import('../router');
+    const router = new VxRouter({
+      pagesDir: './src/pages'
+    });
+    await router.initialize();
+
+    console.log('📦 Building application...');
+    console.log(`🔍 Found ${router.routes.length} routes to build`);
+
+    // Build each route as a static page
+    for (const route of router.routes) {
+      const pageFile = route.filePath;
+      if (fs.existsSync(pageFile)) {
+        console.log(`   Building ${route.path}...`);
+
+        const pageSource = fs.readFileSync(pageFile, 'utf-8');
+
+        const result = await compileSource(pageSource, {
+          target: TargetPlatform.BROWSER,
+          dev: false,
+          minify: true
+        });
+
+        // Generate filename from route path
+        const fileName = route.path === '/' ? 'index.html' : `${route.path.slice(1)}.html`;
+        const outputFile = path.join(distDir, fileName);
+        fs.writeFileSync(outputFile, result.html);
+
+        console.log(`   ✓ Generated ${fileName}`);
+      }
     }
 
-    console.log('📦 Building main application...');
-
-    // Read and compile the main app
-    const appSource = fs.readFileSync(appFile, 'utf-8');
-
-    const result = await compileSource(appSource, {
-      target: TargetPlatform.BROWSER,
-      dev: false,
-      minify: true
+    console.log('✅ Build completed!');
+    console.log(`📁 Output directory: ${path.resolve(distDir)}`);
+    console.log('\n🎯 Generated files:');
+    router.routes.forEach(route => {
+      const fileName = route.path === '/' ? 'index.html' : `${route.path.slice(1)}.html`;
+      console.log(`   - ${fileName} (${route.path})`);
     });
-
-    // For production, always generate single HTML file with inline assets
-    const outputFile = path.join(distDir, 'index.html');
-    fs.writeFileSync(outputFile, result.html);
-    console.log(`   ✓ Generated index.html with inline CSS and JS`);
 
     console.log('✅ Build completed!');
     console.log(`📁 Output directory: ${path.resolve(distDir)}`);
