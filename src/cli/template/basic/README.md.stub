@@ -1,0 +1,48 @@
+# {{projectName}}
+
+A zero-config Fluent VX project.
+
+## 🚀 Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+That's it! Fluent VX handles everything automatically.
+
+## 📁 Project Structure
+
+```
+{{projectName}}/
+├── src/
+│   ├── app.vx              # Main app (zero-config)
+│   ├── pages/              # Pages (automatic routing)
+│   │   ├── index.vx        # Home page (/)
+│   │   └── about.vx        # About page (/about)
+│   └── styles/
+│       └── global.css      # Global styles
+├── fluent-vx.config.ts      # Configuration
+├── package.json            # Dependencies
+└── README.md              # This file
+```
+
+## 🎯 Features
+
+- ⚡ **Zero-config**: Just `vx init` && `npm install` && `npm run dev`
+- 🛣️ **Auto-routing**: Files in `src/pages/` become routes
+- 🔄 **Built-in Reactivity**: Reactive data binding out-of-the-box
+- 🎨 **Simple Syntax**: Clean .vx template syntax
+- 🚀 **Auto-optimize**: Detects dev/prod automatically
+
+## 🛣️ Routing
+
+Just create files in `src/pages/`:
+
+- `src/pages/index.vx` → `/`
+---
+
+Built with [Fluent VX](https://fluent-vx.dev)

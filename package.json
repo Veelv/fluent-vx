@@ -1,0 +1,71 @@
+{
+  "name": "fluent-vx",
+  "version": "0.1.0",
+  "description": "Zero-config frontend framework with automatic routing and optimization",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "vx": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npx tsc",
+    "test": "jest --passWithNoTests",
+    "dev": "ts-node src/dev.ts",
+    "test:examples": "node test-examples.js",
+    "demo:routing": "node examples/compile-routing.js",
+    "demo:full": "node examples/full-compilation.js",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/veelv/fluent-vx.git"
+  },
+  "homepage": "https://veelv.com.br",
+  "bugs": {
+    "url": "https://github.com/veelv/fluent-vx/issues"
+  },
+  "keywords": [
+    "frontend",
+    "framework",
+    "zero-config",
+    "automatic-routing",
+    "reactive",
+    "typescript",
+    "build-tool",
+    "cli",
+    "file-based-routing",
+    "optimization",
+    "veelv",
+    "veelv-team"
+  ],
+  "author": "VeelV Team",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/test"
+    ]
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

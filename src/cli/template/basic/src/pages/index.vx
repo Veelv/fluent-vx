@@ -1,0 +1,16 @@
+// Welcome to Fluent VX
+// Zero-config framework with automatic routing
+
+#data
+  message = "Hello World!"
+  count = 0
+#end data
+
+#view
+  <div style="text-align: center; padding: 2rem;">
+    <h1>{{ message }}</h1>
+    <p>Count: {{ count }}</p>
+    <button @click="count++">Click me</button>
+    <p><a href="/about">Go to About</a></p>
+  </div>
+#end view

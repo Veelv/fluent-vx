@@ -1,0 +1,17 @@
+// {{projectName}} - Main Application
+// Zero-config Fluent VX app 🚀
+
+#view
+  <div id="vx-app">
+    <!-- Fluent VX automatically handles routing and renders pages here -->
+    <div id="vx-page"></div>
+  </div>
+#end view
+
+#script
+  // Initialize Fluent VX framework
+  import { VX } from 'fluent-vx';
+
+  // Manual initialization for full control
+  VX.init();
+#end script
