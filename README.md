@@ -9,7 +9,7 @@
 
 **Zero-config frontend framework with automatic routing and optimization**
 
-Fluent VX is a next-generation frontend framework that prioritizes developer experience with zero configuration. Inspired by modern frameworks like Svelte, Astro, and Next.js, it provides automatic routing, reactive templates, and intelligent optimization out of the box.
+Fluent VX is a next-generation frontend framework that prioritizes developer experience with zero configuration. It provides automatic routing, reactive templates, and intelligent optimization out of the box.
 
 ## ✨ Features
 
@@ -187,15 +187,5 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-Inspired by modern frameworks like:
-- [Svelte](https://svelte.dev) - Reactive templates
-- [Astro](https://astro.build) - Zero-config architecture
-- [Next.js](https://nextjs.org) - File-based routing
-- [Vite](https://vitejs.dev) - Fast build system
-
----
 
 Built with ❤️ by [VeelV Team](https://veelv.com.br)

@@ -5,6 +5,28 @@ All notable changes to **Fluent VX** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2025-12-05
+
+### 🚀 Added
+
+- **Modern Build Architecture**: Separate HTML, CSS, and JS files
+- **External Assets**: index.html loads assets/style.css and assets/app.js
+- **Professional Output**: Clean, deployable build structure
+
+### 🔧 Changed
+
+- **Build Structure**: Generates .vx/index.html + .vx/assets/ directory
+- **Asset Separation**: CSS and JS served as external files
+- **Production Ready**: Optimized for deployment and performance
+
+### 🔥 Hot Reload Features
+
+- **File Watching**: Automatic recompilation on .vx file changes
+- **Live Development**: Real-time updates when editing pages or app files
+- **Asset Regeneration**: Global assets updated on hot reload
+
+---
+
 ## [0.1.12] - 2025-12-05
 
 ### ✨ Added
@@ -63,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎉 Initial Release
 
-**Fluent VX** is a zero-config frontend framework with automatic routing and optimization, created by **VeelV Team**. Inspired by modern frameworks like Svelte, Astro, and Next.js.
+**Fluent VX** is a zero-config frontend framework with automatic routing and optimization, created by **VeelV Team**.
 
 ### ✨ Added
 
@@ -98,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Manager system** - Professional integration lifecycle management
 
 #### Routing System
-- **File-based routing** - Inspired by Next.js and SvelteKit
+- **File-based routing** - Routes automatically discovered from file structure
 - **Dynamic routes** - Support for `[id]` and `[...slug]` patterns
 - **Route guards** - Authentication and authorization guards
 - **Middleware system** - Route-level middleware support

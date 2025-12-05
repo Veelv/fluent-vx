@@ -92,7 +92,7 @@ export class CodeGenerator {
   /**
    * Generates optimized HTML output based on rendering strategy
    */
-  private generateHTML(): string {
+    private generateHTML(): string {
     const buffer: string[] = [];
 
     buffer.push('<!DOCTYPE html>');
@@ -102,15 +102,9 @@ export class CodeGenerator {
     buffer.push('  <meta name="viewport" content="width=device-width, initial-scale=1.0">');
     buffer.push('  <title>Fluent VX App</title>');
 
-    // Add CSS inline for production, link for dev
+    // Always link to external assets (like modern frameworks)
     if (this.context.ast.style.content.trim()) {
-      if (this.context.options.dev) {
-        buffer.push('  <link rel="stylesheet" href="./.vx/assets/style.css">');
-      } else {
-        buffer.push('  <style>');
-        buffer.push(this.generateCSS());
-        buffer.push('  </style>');
-      }
+      buffer.push('  <link rel="stylesheet" href="./assets/style.css">');
     }
 
     buffer.push('</head>');
@@ -119,21 +113,15 @@ export class CodeGenerator {
     // Generate view content based on strategy
     buffer.push(this.generateViewHTML());
 
-    // Add JavaScript inline for production, link for dev
+    // Always link to external JS (like modern frameworks)
     if (this.needsJavaScript()) {
-      if (this.context.options.dev) {
-        buffer.push('  <script type="module" src="./.vx/assets/app.js"></script>');
-      } else {
-        buffer.push('  <script>');
-        buffer.push(this.generateJavaScript());
-        buffer.push('  </script>');
-      }
+      buffer.push('  <script src="./assets/app.js"></script>');
     }
 
     buffer.push('</body>');
     buffer.push('</html>');
 
-    return buffer.join('\n');
+    return this.context.options.minify ? this.minifyHTML(buffer.join('\n')) : buffer.join('\n');
   }
 
   /**
@@ -1006,6 +994,18 @@ window.VxRouter = VxRouter;
       .replace(/\s*;\s*/g, ';') // Remove spaces around semicolons
       .replace(/\s*:\s*/g, ':') // Remove spaces around colons
       .replace(/\s*,\s*/g, ',') // Remove spaces around commas
+      .trim();
+  }
+
+  /**
+   * Basic HTML minification
+   */
+  private minifyHTML(html: string): string {
+    return html
+      .replace(/\s+/g, ' ') // Collapse whitespace
+      .replace(/\s*<\s*/g, '<') // Remove spaces around tags
+      .replace(/\s*>\s*/g, '>') // Remove spaces around tags
+      .replace(/\s*\/\s*/g, '/') // Remove spaces around slashes
       .trim();
   }
 
