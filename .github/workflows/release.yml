@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release v${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## 🎉 Fluent VX v${{ steps.get_version.outputs.VERSION }}
+
+          ### What's New
+
+          See [CHANGELOG.md](https://github.com/veelv/fluent-vx/blob/main/CHANGELOG.md) for detailed changes.
+
+          ### Installation
+
+          ```bash
+          npm install fluent-vx@latest
+          # or
+          npx vx create my-app
+          ```
+
+          ### Quick Start
+
+          ```bash
+          npx vx init
+          npm install
+          npm run dev
+          ```
+
+          ### Links
+
+          - 📚 [Documentation](https://fluent-vx.dev)
+          - 🐛 [Issues](https://github.com/veelv/fluent-vx/issues)
+          - 💬 [Discussions](https://github.com/veelv/fluent-vx/discussions)
+
+          ---
+
+          **Created by [VeelV Team](https://veelv.com.br)**
+        draft: false
+        prerelease: false

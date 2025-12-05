@@ -3,6 +3,9 @@
 [![npm version](https://badge.fury.io/js/fluent-vx.svg)](https://badge.fury.io/js/fluent-vx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![GitHub stars](https://img.shields.io/github/stars/veelv/fluent-vx?style=social)](https://github.com/veelv/fluent-vx)
+[![GitHub issues](https://img.shields.io/github/issues/veelv/fluent-vx)](https://github.com/veelv/fluent-vx/issues)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/veelv/fluent-vx/actions)
 
 **Zero-config frontend framework with automatic routing and optimization**
 
