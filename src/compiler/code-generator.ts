@@ -381,8 +381,9 @@ ${indentStr}</div>`;
   private generateJavaScript(): string {
     const buffer: string[] = [];
 
-    // Data initialization (global) - only if not already declared
-    if (!this.context.options.dev || !this.codeContext.scope.has('vxData')) {
+    // Data initialization (global) - only for production builds
+    // In dev mode, vxData is declared inline in HTML
+    if (!this.context.options.dev) {
       buffer.push('// Global data initialization');
       buffer.push('const vxData = {};');
 
@@ -418,15 +419,18 @@ ${indentStr}</div>`;
     // Make VX globally available (remove exports for browser compatibility)
     buffer.push(`\n// Global VX\nif (typeof window !== 'undefined') {\n  window.VX = VX;\n}`);
 
-    // Add script block content (transform ES6 imports)
+    // Add script block content (transform ES6 imports to browser-compatible)
     if (this.context.ast.script.content.trim()) {
       let scriptContent = this.context.ast.script.content;
-      // Transform ES6 imports to use global VX
-      scriptContent = scriptContent.replace(/import\s*{\s*VX\s*}\s*from\s*['"]fluent-vx['"];?/g, '// VX is available globally');
-      scriptContent = scriptContent.replace(/import\s+.*?from\s+['"].*?['"];?/g, '// Import transformed');
-      scriptContent = scriptContent.replace(/export\s+.*?;?/g, '// Export removed');
-      // Replace VX.init() with window.VX.init()
-      scriptContent = scriptContent.replace(/VX\./g, 'window.VX.');
+
+      // Transform ES6 imports/exports to browser-compatible code
+      scriptContent = scriptContent.replace(/import\s+{[^}]+}\s+from\s+['"][^'"]*['"];?\s*/g, '// Import transformed - VX is available globally\n');
+      scriptContent = scriptContent.replace(/import\s+['"][^'"]*['"];?\s*/g, '// Import transformed\n');
+      scriptContent = scriptContent.replace(/export\s+.*?;?/g, '// Export removed\n');
+
+      // Replace VX references with window.VX (only if not already window.VX)
+      scriptContent = scriptContent.replace(/\bVX\b(?!\.)/g, 'window.VX');
+
       if (scriptContent.trim()) {
         buffer.push(`\n// Script block content\n${scriptContent}`);
       }

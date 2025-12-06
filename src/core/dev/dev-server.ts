@@ -62,7 +62,7 @@ export class DevServer {
   }
 
   private setupRoutes(): void {
-    // API routes for development
+    // API routes for development (before static files to avoid conflicts)
     this.app.get('/__dev__/manifest', (req, res) => {
       const manifest = this.manifestGenerator.loadManifest();
       res.json(manifest || { error: 'Manifest not generated' });
@@ -79,7 +79,16 @@ export class DevServer {
       res.json(Object.fromEntries(this.devCache.getModuleGraph()));
     });
 
-    // SPA fallback
+    // Serve static files from project root (before SPA fallback)
+    this.app.use('/dist', express.static(path.join(this.projectRoot, 'dist'), {
+      setHeaders: (res, path) => {
+        if (path.endsWith('.js')) {
+          res.setHeader('Content-Type', 'application/javascript');
+        }
+      }
+    }));
+
+    // SPA fallback - must be last
     this.app.get('*', async (req, res) => {
       try {
         const html = await this.generateDevHTML(req.path);
@@ -99,12 +108,27 @@ export class DevServer {
     }
 
     try {
-      console.log('🔥 Setting up HMR WebSocket server...');
-      this.wss = new WebSocket.Server({ server: this.server });
+      console.log(`🔥 Setting up HMR WebSocket server on port ${this.port}...`);
+
+      // Create WebSocket server attached to the HTTP server
+      this.wss = new WebSocket.Server({
+        server: this.server,
+        path: '/__hmr__', // Use specific path for HMR
+        perMessageDeflate: false,
+        maxPayload: 1024 * 1024 // 1MB
+      });
+
+      console.log('🔥 HMR WebSocket server created successfully on path /__hmr__');
 
       this.wss.on('connection', (ws: WebSocket) => {
         const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        console.log(`🔗 HMR client connected: ${clientId}`);
+        console.log(`🔗 HMR client connected: ${clientId} on port ${this.port}`);
+
+        ws.send(JSON.stringify({
+          type: 'connected',
+          clientId,
+          timestamp: Date.now()
+        }));
 
         ws.on('close', () => {
           console.log(`🔌 HMR client disconnected: ${clientId}`);
@@ -196,39 +220,102 @@ export class DevServer {
 
     let hmrScript = '';
     if (this.enableHMR && this.wss) {
+      const wsHost = this.host === '127.0.0.1' ? 'localhost' : this.host;
       hmrScript = `
 <script>
-  // HMR Client with error handling
-  console.log('🔥 HMR enabled, attempting connection to port ${this.port}...');
-  try {
-    const hmrWs = new WebSocket('ws://localhost:${this.port}');
+  // HMR Client with smart retry and backoff
+  console.log('🔥 HMR enabled, attempting connection to ${wsHost}:${this.port}...');
 
-    hmrWs.onopen = () => {
-      console.log('🔥 HMR connected successfully');
-    };
+  let retryCount = 0;
+  let retryTimeout = null;
+  const maxRetries = 5;
+  const baseDelay = 1000; // 1 second
+  const maxDelay = 30000; // 30 seconds
 
-    hmrWs.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        console.log('🔥 HMR:', msg.type, msg.moduleId);
-        if (msg.type === 'reload') {
-          window.location.reload();
+  function connectHMR() {
+    if (retryCount >= maxRetries) {
+      console.warn('🔥 HMR: Max retries reached, giving up');
+      return;
+    }
+
+    try {
+      retryCount++;
+      const hmrWs = new WebSocket('ws://${wsHost}:${this.port}/__hmr__');
+
+      hmrWs.onopen = () => {
+        console.log('🔥 HMR connected successfully');
+        retryCount = 0; // Reset on success
+      };
+
+      hmrWs.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'reload') {
+            console.log('🔥 HMR: Reloading page...');
+            window.location.reload();
+          }
+        } catch (e) {
+          console.warn('HMR: Failed to parse message:', e);
         }
-      } catch (e) {
-        console.warn('HMR: Failed to parse message:', e);
+      };
+
+      hmrWs.onerror = (error) => {
+        // Only log first few errors to avoid spam
+        if (retryCount <= 3) {
+          console.warn('HMR: Connection error (attempt ' + retryCount + '/' + maxRetries + ')');
+        }
+
+        // Schedule retry with exponential backoff
+        const delay = Math.min(baseDelay * Math.pow(2, retryCount - 1), maxDelay);
+        retryTimeout = setTimeout(connectHMR, delay);
+      };
+
+      hmrWs.onclose = (event) => {
+        // Only log first few closes to avoid spam
+        if (retryCount <= 3) {
+          console.log('HMR: Connection closed, retrying... (attempt ' + retryCount + '/' + maxRetries + ')');
+        }
+
+        // Schedule retry with exponential backoff
+        const delay = Math.min(baseDelay * Math.pow(2, retryCount - 1), maxDelay);
+        retryTimeout = setTimeout(connectHMR, delay);
+      };
+
+      // Set a timeout for the connection attempt
+      setTimeout(() => {
+        if (hmrWs.readyState === WebSocket.CONNECTING) {
+          hmrWs.close();
+        }
+      }, 5000); // 5 second timeout
+
+    } catch (error) {
+      if (retryCount <= 3) {
+        console.warn('HMR: Failed to initialize (attempt ' + retryCount + '/' + maxRetries + '):', error);
       }
-    };
 
-    hmrWs.onerror = (error) => {
-      console.warn('HMR: Connection error:', error);
-    };
-
-    hmrWs.onclose = () => {
-      console.log('HMR: Connection closed');
-    };
-  } catch (error) {
-    console.warn('HMR: Failed to initialize:', error);
+      // Schedule retry with exponential backoff
+      const delay = Math.min(baseDelay * Math.pow(2, retryCount - 1), maxDelay);
+      retryTimeout = setTimeout(connectHMR, delay);
+    }
   }
+
+  // Initial connection attempt after page load
+  function initHMR() {
+    setTimeout(connectHMR, 500); // Wait 500ms for server to be ready
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHMR);
+  } else {
+    initHMR();
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (retryTimeout) {
+      clearTimeout(retryTimeout);
+    }
+  });
 </script>`;
     }
 

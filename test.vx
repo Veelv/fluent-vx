@@ -1,0 +1,31 @@
+#data
+  title = "Fluent VX Test"
+  count = 0
+  items = ["Vue", "React", "Svelte"]
+#end data
+
+#view
+  <div class="container">
+    <h1>{{ title }}</h1>
+    <p>Count: {{ count }}</p>
+    <button @click="count++">Increment</button>
+
+    <ul>
+      @for(item in items)
+        <li>{{ item }}</li>
+      @end for
+    </ul>
+
+    @if(count > 5)
+      <p>Count is high!</p>
+    @end if
+  </div>
+#end view
+
+#style
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+#end style

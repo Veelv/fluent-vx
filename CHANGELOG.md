@@ -5,6 +5,20 @@ All notable changes to **Fluent VX** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2025-12-06
+
+### 🐛 Fixed
+
+- **HMR Port Auto-Increment**: Fixed WebSocket connection when dev server automatically increments port due to conflicts
+- **WebSocket Host Consistency**: Updated client-side WebSocket to use same host as server instead of hardcoded localhost
+
+### 🔧 Changed
+
+- **HMR Connection**: Client now dynamically connects to the actual server host and port
+- **Debug Logging**: Enhanced HMR initialization logs for better troubleshooting
+
+---
+
 ## [0.1.17] - 2025-12-06
 
 ### 🐛 Fixed
