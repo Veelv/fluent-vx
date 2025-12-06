@@ -123,7 +123,7 @@ export class CodeGenerator {
     if (this.needsJavaScript()) {
       if (this.context.options.dev) {
         buffer.push('  <script>');
-        buffer.push(this.generateJavaScript());
+        buffer.push(this.generateJavaScriptInline());
         buffer.push('  </script>');
       } else {
         buffer.push('  <script src="./assets/app.js"></script>');
@@ -315,18 +315,81 @@ ${indentStr}</div>`;
   }
 
   /**
-   * Generates JavaScript output
+   * Generates JavaScript output for inline use (avoids duplicate declarations)
    */
-  private generateJavaScript(): string {
+  private generateJavaScriptInline(): string {
     const buffer: string[] = [];
 
-    // Data initialization (global)
+    // Data initialization (global) - only for inline use
     buffer.push('// Global data initialization');
     buffer.push('const vxData = {};');
 
     // Initialize reactive data
     for (const variable of this.context.ast.data.variables) {
       buffer.push(`vxData.${variable.name} = ${this.parseValue(variable.value.code)};`);
+    }
+
+    // Add inline VxRouter for client-side routing
+    buffer.push(this.generateInlineVxRouter());
+
+    // Add secure fetch for API calls
+    if (this.needsSecureFetch()) {
+      buffer.push(this.generateSecureFetch());
+    }
+
+    // Add reactivity system
+    if (this.context.features.reactive) {
+      buffer.push(this.generateReactivitySystem());
+    }
+
+    // Add event handlers
+    if (this.context.features.events) {
+      buffer.push(this.generateEventHandlers());
+    }
+
+    // Add server action callers
+    if (this.context.features.serverActions) {
+      buffer.push(this.generateServerActionCallers());
+    }
+
+    // Make VX globally available (remove exports for browser compatibility)
+    buffer.push(`\n// Global VX\nif (typeof window !== 'undefined') {\n  window.VX = VX;\n}`);
+
+    // Add script block content (transform ES6 imports)
+    if (this.context.ast.script.content.trim()) {
+      let scriptContent = this.context.ast.script.content;
+      // Transform ES6 imports to use global VX
+      scriptContent = scriptContent.replace(/import\s*{\s*VX\s*}\s*from\s*['"]fluent-vx['"];?/g, '// VX is available globally');
+      scriptContent = scriptContent.replace(/import\s+.*?from\s+['"].*?['"];?/g, '// Import transformed');
+      scriptContent = scriptContent.replace(/export\s+.*?;?/g, '// Export removed');
+      // Replace VX.init() with window.VX.init()
+      scriptContent = scriptContent.replace(/VX\./g, 'window.VX.');
+      if (scriptContent.trim()) {
+        buffer.push(`\n// Script block content\n${scriptContent}`);
+      }
+    }
+
+    // Initialize VX framework
+    buffer.push(`\n// Initialize VX framework\nif (typeof window !== 'undefined') {\n  // Ensure VX is available\n  if (typeof VX !== 'undefined') {\n    window.VX = VX;\n  }\n  \n  if (window.VX && window.VX.init) {\n    window.VX.init();\n  }\n  \n  // Initialize reactive data if not already done\n  if (!window.reactiveData && typeof vxData !== 'undefined') {\n    window.reactiveData = window.VX ? window.VX.reactive(vxData) : vxData;\n  }\n}`);
+
+    return buffer.join('\n');
+  }
+
+  /**
+   * Generates JavaScript output
+   */
+  private generateJavaScript(): string {
+    const buffer: string[] = [];
+
+    // Data initialization (global) - only if not already declared
+    if (!this.context.options.dev || !this.codeContext.scope.has('vxData')) {
+      buffer.push('// Global data initialization');
+      buffer.push('const vxData = {};');
+
+      // Initialize reactive data
+      for (const variable of this.context.ast.data.variables) {
+        buffer.push(`vxData.${variable.name} = ${this.parseValue(variable.value.code)};`);
+      }
     }
 
     // Add inline VxRouter for client-side routing

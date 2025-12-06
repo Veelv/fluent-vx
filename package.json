@@ -1,6 +1,6 @@
 {
   "name": "fluent-vx",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Zero-config frontend framework with automatic routing and optimization",
   "main": "dist/index.js",
   "module": "dist/index.js",
