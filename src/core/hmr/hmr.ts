@@ -34,47 +34,58 @@ export class HMRServer {
   constructor(port: number, cache: DevCache) {
     this.port = port;
     this.cache = cache;
-    this.initialize();
+    // Note: initialize() is async but constructor cannot be async
+    // The initialization will happen and any errors will be thrown
+    this.initialize().catch(error => {
+      console.error('HMR server initialization failed:', error);
+      throw error;
+    });
   }
 
-  private initialize(): void {
-    try {
-      this.wss = new WebSocket.Server({ 
-        port: this.port,
-        perMessageDeflate: false
-      });
-
-      this.wss.on('connection', (ws: WebSocket) => {
-        const clientId = this.generateClientId();
-        const client: HMRClient = {
-          id: clientId,
-          ws,
-          connectedAt: Date.now()
-        };
-
-        this.clients.set(clientId, client);
-        console.log(`🔗 HMR client connected: ${clientId}`);
-
-        ws.on('close', () => {
-          this.clients.delete(clientId);
-          console.log(`🔌 HMR client disconnected: ${clientId}`);
+  private async initialize(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log(`🔥 Starting HMR server on port ${this.port}...`);
+        this.wss = new WebSocket.Server({
+          port: this.port,
+          perMessageDeflate: false
+        }, () => {
+          console.log(`🔥 HMR server successfully started on port ${this.port}`);
+          resolve();
         });
 
-        ws.on('error', (error) => {
-          console.warn(`HMR client error ${clientId}:`, error.message);
-          this.clients.delete(clientId);
+        this.wss.on('connection', (ws: WebSocket) => {
+          const clientId = this.generateClientId();
+          const client: HMRClient = {
+            id: clientId,
+            ws,
+            connectedAt: Date.now()
+          };
+
+          this.clients.set(clientId, client);
+          console.log(`🔗 HMR client connected: ${clientId}`);
+
+          ws.on('close', () => {
+            this.clients.delete(clientId);
+            console.log(`🔌 HMR client disconnected: ${clientId}`);
+          });
+
+          ws.on('error', (error) => {
+            console.warn(`HMR client error ${clientId}:`, error.message);
+            this.clients.delete(clientId);
+          });
         });
-      });
 
-      this.wss.on('error', (error) => {
-        console.warn('HMR server error:', error.message);
-      });
+        this.wss.on('error', (error) => {
+          console.error('HMR server error:', error.message);
+          reject(error);
+        });
 
-      console.log(`🔥 HMR server started on port ${this.port}`);
-    } catch (error) {
-      console.error('Failed to initialize HMR server:', error);
-      throw error;
-    }
+      } catch (error) {
+        console.error('Failed to initialize HMR server:', error);
+        reject(error);
+      }
+    });
   }
 
   /**

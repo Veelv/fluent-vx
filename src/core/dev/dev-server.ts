@@ -8,7 +8,7 @@ import compression from 'compression';
 import serveStatic from 'serve-static';
 import * as fs from 'fs';
 import * as path from 'path';
-import { HMRServer } from '../hmr/hmr';
+import WebSocket from 'ws';
 import { DevCache, BuildCache } from '../hmr/cache';
 import { ManifestGenerator } from '../manifest/manifest';
 
@@ -22,13 +22,13 @@ export interface DevServerOptions {
 
 export class DevServer {
   private app: express.Application;
+  private server?: any; // HTTP server instance
+  private wss?: WebSocket.Server; // WebSocket server
   private port: number;
   private host: string;
   private projectRoot: string;
   private enableHMR: boolean;
-  private hmrPort: number;
 
-  private hmrServer?: HMRServer;
   private devCache: DevCache;
   private buildCache: BuildCache;
   private manifestGenerator: ManifestGenerator;
@@ -38,7 +38,6 @@ export class DevServer {
     this.host = options.host;
     this.projectRoot = options.projectRoot;
     this.enableHMR = options.enableHMR;
-    this.hmrPort = options.hmrPort || this.port + 1;
 
     this.app = express();
     this.devCache = new DevCache();
@@ -47,10 +46,6 @@ export class DevServer {
 
     this.setupMiddleware();
     this.setupRoutes();
-
-    if (this.enableHMR) {
-      this.setupHMR();
-    }
   }
 
   private setupMiddleware(): void {
@@ -97,11 +92,43 @@ export class DevServer {
   }
 
   private setupHMR(): void {
+    if (!this.server) {
+      console.warn('HTTP server not available for HMR setup');
+      this.enableHMR = false;
+      return;
+    }
+
     try {
-      this.hmrServer = new HMRServer(this.hmrPort, this.devCache);
-      console.log(`🔥 HMR server initialized on port ${this.hmrPort}`);
+      console.log('🔥 Setting up HMR WebSocket server...');
+      this.wss = new WebSocket.Server({ server: this.server });
+
+      this.wss.on('connection', (ws: WebSocket) => {
+        const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🔗 HMR client connected: ${clientId}`);
+
+        ws.on('close', () => {
+          console.log(`🔌 HMR client disconnected: ${clientId}`);
+        });
+
+        ws.on('error', (error) => {
+          console.warn(`HMR client error ${clientId}:`, error.message);
+        });
+
+        // Handle HMR messages if needed
+        ws.on('message', (data) => {
+          console.log('HMR message received:', data.toString());
+        });
+      });
+
+      this.wss.on('error', (error) => {
+        console.error('HMR WebSocket server error:', error.message);
+        this.enableHMR = false;
+      });
+
+      console.log('🔥 HMR WebSocket server initialized successfully');
     } catch (error) {
-      console.warn('⚠️  Failed to initialize HMR server:', error);
+      console.error('❌ Failed to initialize HMR WebSocket server:', error);
+      console.error('❌ HMR will be disabled');
       this.enableHMR = false;
     }
   }
@@ -168,17 +195,18 @@ export class DevServer {
     }
 
     let hmrScript = '';
-    if (this.enableHMR) {
+    if (this.enableHMR && this.wss) {
       hmrScript = `
 <script>
   // HMR Client with error handling
+  console.log('🔥 HMR enabled, attempting connection to port ${this.port}...');
   try {
-    const hmrWs = new WebSocket('ws://localhost:${this.hmrPort}');
-    
+    const hmrWs = new WebSocket('ws://localhost:${this.port}');
+
     hmrWs.onopen = () => {
-      console.log('🔥 HMR connected');
+      console.log('🔥 HMR connected successfully');
     };
-    
+
     hmrWs.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
@@ -190,16 +218,16 @@ export class DevServer {
         console.warn('HMR: Failed to parse message:', e);
       }
     };
-    
+
     hmrWs.onerror = (error) => {
-      console.warn('HMR: Connection error (this is normal if HMR is disabled):', error);
+      console.warn('HMR: Connection error:', error);
     };
-    
+
     hmrWs.onclose = () => {
       console.log('HMR: Connection closed');
     };
   } catch (error) {
-    console.warn('HMR: Failed to initialize (this is normal if HMR is disabled):', error);
+    console.warn('HMR: Failed to initialize:', error);
   }
 </script>`;
     }
@@ -257,24 +285,48 @@ export class DevServer {
   }
 
   async start(): Promise<void> {
-    return new Promise((resolve) => {
-      this.app.listen(this.port, this.host, () => {
-        console.log(`🚀 Fluent VX Dev Server running on http://${this.host}:${this.port}`);
-        console.log(`🔥 HMR: ${this.enableHMR ? 'Enabled' : 'Disabled'}`);
-        console.log(`📋 Manifest: ${this.manifestGenerator.loadManifest() ? 'Loaded' : 'Generating...'}`);
+    return new Promise((resolve, reject) => {
+      try {
+        this.server = this.app.listen(this.port, this.host, () => {
+          console.log(`🚀 Fluent VX Dev Server running on http://${this.host}:${this.port}`);
 
-        // Generate initial manifest
-        const moduleGraph = this.devCache.getModuleGraph();
-        this.manifestGenerator.generateDevManifest(moduleGraph);
+          // Setup HMR after server is listening
+          if (this.enableHMR) {
+            this.setupHMR();
+          }
 
-        resolve();
-      });
+          console.log(`🔥 HMR: ${this.enableHMR ? 'Enabled' : 'Disabled'}`);
+          console.log(`📋 Manifest: ${this.manifestGenerator.loadManifest() ? 'Loaded' : 'Generating...'}`);
+
+          // Generate initial manifest
+          const moduleGraph = this.devCache.getModuleGraph();
+          this.manifestGenerator.generateDevManifest(moduleGraph);
+
+          resolve();
+        });
+
+        this.server.on('error', (error: Error) => {
+          console.error('Dev server error:', error);
+          reject(error);
+        });
+      } catch (error) {
+        console.error('Failed to start dev server:', error);
+        reject(error);
+      }
     });
   }
 
   async stop(): Promise<void> {
-    if (this.hmrServer) {
-      this.hmrServer.close();
+    // Close WebSocket server
+    if (this.wss) {
+      this.wss.close();
+      this.wss = undefined;
+    }
+
+    // Close HTTP server
+    if (this.server) {
+      this.server.close();
+      this.server = undefined;
     }
 
     // Clear caches

@@ -47,6 +47,11 @@ export class Lexer {
 
       if (char === '#') {
         tokens.push(this.createToken(TokenType.HASH, char));
+        // Skip any whitespace after #
+        while (this.position < this.input.length && /\s/.test(this.input[this.position])) {
+          this.position++;
+          this.column++;
+        }
         continue;
       }
 

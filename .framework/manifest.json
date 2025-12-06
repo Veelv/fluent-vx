@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "timestamp": 1765030583132,
+  "pages": [],
+  "layouts": [],
+  "components": [],
+  "routes": [],
+  "dependencies": {},
+  "buildInfo": {
+    "chunks": [],
+    "assets": [],
+    "optimization": {
+      "minified": false,
+      "compressed": false,
+      "treeShaken": false
+    }
+  }
+}

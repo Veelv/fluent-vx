@@ -322,11 +322,11 @@ ${indentStr}</div>`;
 
     // Data initialization (global)
     buffer.push('// Global data initialization');
-    buffer.push('const data = {};');
+    buffer.push('const vxData = {};');
 
     // Initialize reactive data
     for (const variable of this.context.ast.data.variables) {
-      buffer.push(`data.${variable.name} = ${this.parseValue(variable.value.code)};`);
+      buffer.push(`vxData.${variable.name} = ${this.parseValue(variable.value.code)};`);
     }
 
     // Add inline VxRouter for client-side routing
@@ -370,7 +370,7 @@ ${indentStr}</div>`;
     }
 
     // Initialize VX framework
-    buffer.push(`\n// Initialize VX framework\nif (typeof window !== 'undefined') {\n  // Ensure VX is available\n  if (typeof VX !== 'undefined') {\n    window.VX = VX;\n  }\n  \n  if (window.VX && window.VX.init) {\n    window.VX.init();\n  }\n  \n  // Initialize reactive data if not already done\n  if (!window.reactiveData && typeof data !== 'undefined') {\n    window.reactiveData = window.VX ? window.VX.reactive(data) : data;\n  }\n}`);
+    buffer.push(`\n// Initialize VX framework\nif (typeof window !== 'undefined') {\n  // Ensure VX is available\n  if (typeof VX !== 'undefined') {\n    window.VX = VX;\n  }\n  \n  if (window.VX && window.VX.init) {\n    window.VX.init();\n  }\n  \n  // Initialize reactive data if not already done\n  if (!window.reactiveData && typeof vxData !== 'undefined') {\n    window.reactiveData = window.VX ? window.VX.reactive(vxData) : vxData;\n  }\n}`);
 
     return buffer.join('\n');
   }
@@ -737,7 +737,7 @@ ${indentStr}</div>`;
       }
 
       // Make data reactive (global)
-      window.reactiveData = window.VX.reactive(data);
+      window.reactiveData = window.VX.reactive(vxData);
 
       // Create reactive effects for DOM updates
       ${this.generateReactiveEffects()}
