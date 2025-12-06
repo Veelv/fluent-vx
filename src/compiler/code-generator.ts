@@ -102,9 +102,15 @@ export class CodeGenerator {
     buffer.push('  <meta name="viewport" content="width=device-width, initial-scale=1.0">');
     buffer.push('  <title>Fluent VX App</title>');
 
-    // Always link to external assets (like modern frameworks)
+    // Include CSS inline for development or external for production
     if (this.context.ast.style.content.trim()) {
-      buffer.push('  <link rel="stylesheet" href="./assets/style.css">');
+      if (this.context.options.dev) {
+        buffer.push('  <style>');
+        buffer.push(this.context.ast.style.content);
+        buffer.push('  </style>');
+      } else {
+        buffer.push('  <link rel="stylesheet" href="./assets/style.css">');
+      }
     }
 
     buffer.push('</head>');
@@ -113,9 +119,15 @@ export class CodeGenerator {
     // Generate view content based on strategy
     buffer.push(this.generateViewHTML());
 
-    // Always link to external JS (like modern frameworks)
+    // Include JS inline for development or external for production
     if (this.needsJavaScript()) {
-      buffer.push('  <script src="./assets/app.js"></script>');
+      if (this.context.options.dev) {
+        buffer.push('  <script>');
+        buffer.push(this.generateJavaScript());
+        buffer.push('  </script>');
+      } else {
+        buffer.push('  <script src="./assets/app.js"></script>');
+      }
     }
 
     buffer.push('</body>');
@@ -147,30 +159,24 @@ export class CodeGenerator {
           buffer.push(`${indentStr}${node.content}`);
           break;
         case 'interpolation':
-          const staticValue = this.evaluateStaticExpression(node.expression.code);
-          if (staticValue !== null) {
-            buffer.push(`${indentStr}${staticValue}`);
-          } else {
-            // For dev mode, try to get default value anyway
-            const defaultValue = this.getDefaultValue(node.expression.code);
-            if (defaultValue) {
-              buffer.push(`${indentStr}${defaultValue}`);
-            } else {
-              // Generate reactive interpolation
-              const varName = `vx_${Math.random().toString(36).substr(2, 9)}`;
-              const varCode = node.expression.code;
-              this.context.features.reactive = true;
-              buffer.push(`${indentStr}<span id="${varName}" data-vx-text="${varCode}">${varCode}</span>`);
-
-              // Add to reactive updates
-              this.addReactiveUpdate(`() => {
-                 const el = document.getElementById('${varName}');
-                 if (el && window.reactiveData.${varCode} !== undefined) {
-                   el.textContent = String(window.reactiveData.${varCode});
-                 }
-               }`);
-            }
+          // Generate reactive interpolation
+          const varName = `vx_${Math.random().toString(36).substr(2, 9)}`;
+          const varCode = node.expression.code;
+          this.context.features.reactive = true;
+          let defaultValue = this.getDefaultValue(node.expression.code);
+          if (defaultValue == null || defaultValue === '') {
+            defaultValue = varCode;
           }
+          buffer.push(`${indentStr}<span id="${varName}" data-vx-text="${varCode}">${defaultValue}</span>`);
+
+          // Add to reactive updates
+          this.addReactiveUpdate(`() => {
+             const el = document.getElementById('${varName}');
+             if (el && window.reactiveData) {
+               const value = window.reactiveData.${varCode};
+               el.textContent = value !== undefined ? String(value) : '${defaultValue}';
+             }
+           }`);
           break;
         case 'directive':
           buffer.push(this.generateDirectiveHTML(node, indent));
@@ -208,8 +214,10 @@ export class CodeGenerator {
     for (const attr of element.attributes) {
       if (attr.name.startsWith('@')) {
         // Event handlers - add data attributes for hydration
-        const value = (attr.value?.code || '').replace(/"/g, '"');
-        attrs.push(`data-event-${attr.name.slice(1)}="${value}"`);
+        const eventType = attr.name.slice(1);
+        const value = (attr.value?.code || '').replace(/"/g, '&quot;');
+        attrs.push(`data-event-${eventType}="${value}"`);
+        this.context.features.events = true;
       } else if (attr.dynamic) {
         // Dynamic attributes
         attrs.push(`${attr.name}="{{ ${attr.value?.code || ''} }}"`);
@@ -228,35 +236,39 @@ export class CodeGenerator {
    */
   private generateDirectiveHTML(directive: DirectiveNode, indent: number): string {
     const indentStr = ' '.repeat(indent);
+    const directiveId = `vx_dir_${Math.random().toString(36).substr(2, 9)}`;
 
     switch (directive.name) {
       case 'if':
-        const condition = directive.condition?.code;
-        const conditionValue = this.evaluateStaticExpression(condition || '');
+        const condition = directive.condition?.code || '';
+        const conditionValue = this.evaluateStaticExpression(condition);
 
-        // For reactive conditions, always render both branches with appropriate markers
-        if (conditionValue === null) {
-          // Dynamic condition - render both branches
-          const ifContent = this.generateNodesHTML(directive.children, indent);
-          // For now, just render the if branch for dynamic conditions
-          return ifContent;
-        } else if (conditionValue) {
-          // Static true condition
-          return this.generateNodesHTML(directive.children, indent);
-        } else {
-          // Static false condition - check for else branch
-          return '';
-        }
+        // Generate container with directive marker
+        const ifContent = this.generateNodesHTML(directive.children, indent + 2);
+        
+        // Add reactive update for @if
+        this.addReactiveUpdate(`() => {
+          const el = document.getElementById('${directiveId}');
+          if (el && window.reactiveData) {
+            const condition = window.reactiveData.${condition};
+            el.style.display = condition ? '' : 'none';
+          }
+        }`);
+
+        return `${indentStr}<div id="${directiveId}" data-vx-if="${condition}" style="display: ${conditionValue ? '' : 'none'}">
+${ifContent}
+${indentStr}</div>`;
 
       case 'for':
         const iterator = directive.iterator || 'item';
         const iterable = directive.iterable?.code || 'items';
         const iterableValue = this.evaluateStaticExpression(iterable);
 
+        // Generate initial render
+        let result = `${indentStr}<div id="${directiveId}" data-vx-for="${iterator} in ${iterable}">`;
+        
         if (iterableValue !== null && Array.isArray(iterableValue)) {
-          let result = '';
           for (const item of iterableValue) {
-            // Create a temporary data context with the iterator variable
             const originalAST = this.context.ast;
             const tempAST = {
               ...originalAST,
@@ -268,23 +280,27 @@ export class CodeGenerator {
                 ]
               }
             };
-
-            // Temporarily update AST
             this.context.ast = tempAST;
-
-            // Generate HTML with iterator in data context
-            result += this.generateNodesHTML(directive.children, indent);
-
-            // Restore original AST
+            result += '\n' + this.generateNodesHTML(directive.children, indent + 2);
             this.context.ast = originalAST;
           }
-          return result;
         }
+        
+        result += `\n${indentStr}</div>`;
 
-        // Fallback for non-static arrays
-        return `${indentStr}<!-- @for ${iterator} in ${iterable} -->\n${
-          this.generateNodesHTML(directive.children, indent)
-        }\n${indentStr}<!-- @endfor -->`;
+        // Add reactive update for @for
+        const templateHTML = this.generateNodesHTML(directive.children, 0).replace(/\n/g, '\\n').replace(/'/g, "\\'");
+        this.addReactiveUpdate(`() => {
+          const el = document.getElementById('${directiveId}');
+          if (el && window.reactiveData && window.reactiveData.${iterable}) {
+            const items = window.reactiveData.${iterable};
+            el.innerHTML = items.map(${iterator} => {
+              return \`${templateHTML}\`.replace(/{{\\s*${iterator}\\s*}}/g, ${iterator});
+            }).join('');
+          }
+        }`);
+
+        return result;
 
       default:
         return this.generateNodesHTML(directive.children, indent);
@@ -336,19 +352,25 @@ export class CodeGenerator {
       buffer.push(this.generateServerActionCallers());
     }
 
-    // Export VX for module usage
-    buffer.push(`\n// Export VX\nexport { VX };`);
+    // Make VX globally available (remove exports for browser compatibility)
+    buffer.push(`\n// Global VX\nif (typeof window !== 'undefined') {\n  window.VX = VX;\n}`);
 
-    // Make VX globally available
-    buffer.push(`\n// Global VX\nwindow.VX = VX;`);
-
-    // Add script block content
+    // Add script block content (transform ES6 imports)
     if (this.context.ast.script.content.trim()) {
-      buffer.push(`\n// Script block content\n${this.context.ast.script.content}`);
+      let scriptContent = this.context.ast.script.content;
+      // Transform ES6 imports to use global VX
+      scriptContent = scriptContent.replace(/import\s*{\s*VX\s*}\s*from\s*['"]fluent-vx['"];?/g, '// VX is available globally');
+      scriptContent = scriptContent.replace(/import\s+.*?from\s+['"].*?['"];?/g, '// Import transformed');
+      scriptContent = scriptContent.replace(/export\s+.*?;?/g, '// Export removed');
+      // Replace VX.init() with window.VX.init()
+      scriptContent = scriptContent.replace(/VX\./g, 'window.VX.');
+      if (scriptContent.trim()) {
+        buffer.push(`\n// Script block content\n${scriptContent}`);
+      }
     }
 
-    // Initialize VX if available
-    buffer.push(`\n// Initialize VX framework\nif (window.VX && window.VX.init) {\n  window.VX.init().catch(console.error);\n}`);
+    // Initialize VX framework
+    buffer.push(`\n// Initialize VX framework\nif (typeof window !== 'undefined') {\n  // Ensure VX is available\n  if (typeof VX !== 'undefined') {\n    window.VX = VX;\n  }\n  \n  if (window.VX && window.VX.init) {\n    window.VX.init();\n  }\n  \n  // Initialize reactive data if not already done\n  if (!window.reactiveData && typeof data !== 'undefined') {\n    window.reactiveData = window.VX ? window.VX.reactive(data) : data;\n  }\n}`);
 
     return buffer.join('\n');
   }
@@ -671,7 +693,7 @@ export class CodeGenerator {
       let activeEffect = null;
 
       // Global reactivity functions
-      window.VX = {
+      const VX = {
         reactive: (target) => new ReactiveObject(target),
         effect: (fn) => {
           const effect = new Effect(fn);
@@ -708,6 +730,11 @@ export class CodeGenerator {
           // Could setup client-side routing here if needed
         }
       };
+      
+      // Make VX globally available
+      if (typeof window !== 'undefined') {
+        window.VX = VX;
+      }
 
       // Make data reactive (global)
       window.reactiveData = window.VX.reactive(data);
@@ -780,21 +807,41 @@ window.VxRouter = VxRouter;
   private generateEventHandlers(): string {
     return `
       // Secure event handlers
-      document.addEventListener('click', (e) => {
-        const eventAttr = e.target.closest('[data-event-click]');
-        if (eventAttr) {
-          const code = eventAttr.getAttribute('data-event-click');
-          if (code) {
-            try {
-              // Transform variable names to use reactive data
-              const transformedCode = code.replace(/\\b(\\w+)\\b/g, 'window.reactiveData.$1');
-              const fn = new Function('"use strict"; ' + transformedCode);
-              fn();
-            } catch (error) {
-              console.error('Secure event execution failed:', error);
+      document.addEventListener('DOMContentLoaded', () => {
+        // Click events
+        document.addEventListener('click', (e) => {
+          const eventAttr = e.target.closest('[data-event-click]');
+          if (eventAttr) {
+            const code = eventAttr.getAttribute('data-event-click');
+            if (code) {
+              try {
+                // Create function with reactiveData in scope
+                const fn = new Function('reactiveData', 'with(reactiveData) { ' + code + ' }');
+                fn(window.reactiveData);
+              } catch (error) {
+                console.error('Event handler error:', error);
+              }
             }
           }
-        }
+        });
+        
+        // Other event types can be added here
+        ['change', 'input', 'submit'].forEach(eventType => {
+          document.addEventListener(eventType, (e) => {
+            const eventAttr = e.target.closest('[data-event-' + eventType + ']');
+            if (eventAttr) {
+              const code = eventAttr.getAttribute('data-event-' + eventType);
+              if (code) {
+                try {
+                  const fn = new Function('reactiveData', 'event', 'with(reactiveData) { ' + code + ' }');
+                  fn(window.reactiveData, e);
+                } catch (error) {
+                  console.error('Event handler error:', error);
+                }
+              }
+            }
+          });
+        });
       });
     `;
   }

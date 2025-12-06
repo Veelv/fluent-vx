@@ -23,7 +23,19 @@ export function detectReactivity(ast: AST): ReactivityGraph {
   // Analyze #view for usages
   analyzeView(ast.view.children, variables);
 
-  return { variables };
+  return {
+    variables,
+    addVariable(name: string, value: any) {
+      variables.set(name, {
+        name,
+        dependencies: [],
+        usedIn: ['data']
+      });
+    },
+    getVariable(name: string) {
+      return variables.get(name);
+    }
+  };
 }
 
 /**

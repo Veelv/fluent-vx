@@ -18,13 +18,13 @@ import { validateAccessibility } from '../accessibility';
 /**
  * Optimizes the generated code based on rendering strategy and AST analysis.
  */
-export function optimizeCode(
+export async function optimizeCode(
   html: string,
   css: string,
   js: string,
   ast: AST,
   strategy: StrategyAnalysis
-): OptimizationResult {
+): Promise<OptimizationResult> {
   let optimizedHtml = html;
   let optimizedCss = css;
   let optimizedJs = js;
@@ -58,9 +58,9 @@ export function optimizeCode(
   }
 
   // General optimizations
-  optimizedHtml = minifyHtml(optimizedHtml);
-  optimizedCss = minifyCss(optimizedCss);
-  optimizedJs = minifyJs(optimizedJs);
+  optimizedHtml = await minifyHtml(optimizedHtml);
+  optimizedCss = await minifyCss(optimizedCss);
+  optimizedJs = await minifyJs(optimizedJs);
 
   const estimates = getPerformanceEstimates(strategy.strategy);
 

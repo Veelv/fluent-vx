@@ -3,7 +3,6 @@
 
 import { AST, ViewNode, ElementNode, DirectiveNode, InterpolationNode } from '../parser/ast';
 import { RenderingStrategy, CompilationContext, CompilationResult } from './types';
-import { generateCode } from './code-generator';
 
 /**
  * Advanced analyzer that generates strategy-specific outputs
@@ -19,40 +18,58 @@ export class Analyzer {
    * Analyze and generate output based on rendering strategy
    */
   async analyzeAndGenerate(): Promise<CompilationResult> {
-    const strategy = this.context.options.strategy || RenderingStrategy.STATIC;
+    // Detect features from AST
+    this.detectFeatures();
 
-    switch (strategy) {
-      case RenderingStrategy.STATIC:
-        return this.generateStaticOutput();
-      case RenderingStrategy.STREAM:
-        return this.generateSSROutput();
-      case RenderingStrategy.ISLANDS:
-        return this.generateIslandsOutput();
-      case RenderingStrategy.SPA:
-        return this.generateSPAOutput();
-      case RenderingStrategy.HYDRATE:
-        return this.generateHydrateOutput();
-      default:
-        // For HYDRATE strategy (default), use code generator with reactive support
-        return generateCode(this.context);
-    }
+    // Use the professional code generator
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(this.context);
+    const result = await generator.generate();
+
+    return result;
+  }
+
+  /**
+   * Detect features in the AST
+   */
+  private detectFeatures(): void {
+    // Check for reactive data
+    this.context.features.reactive = this.context.ast.data.variables.length > 0;
+
+    // Check for events and directives
+    const checkNode = (node: ViewNode): void => {
+      if (node.type === 'element') {
+        // Check for event handlers
+        const hasEvents = node.attributes.some(attr => attr.name.startsWith('@'));
+        if (hasEvents) {
+          this.context.features.events = true;
+        }
+        // Check children
+        node.children.forEach(checkNode);
+      } else if (node.type === 'directive') {
+        // Directives require reactivity
+        this.context.features.reactive = true;
+        node.children.forEach(checkNode);
+      } else if (node.type === 'interpolation') {
+        // Interpolations require reactivity
+        this.context.features.reactive = true;
+      }
+    };
+
+    this.context.ast.view.children.forEach(checkNode);
   }
 
   /**
    * Generate static HTML output (SSG)
    */
-  private async generateStaticOutput(): Promise<CompilationResult> {
+  private async generateStaticOutput(reactivityGraph: any): Promise<CompilationResult> {
     // For static, evaluate all expressions at compile time
     const staticAST = this.evaluateStaticExpressions(this.context.ast);
+    const staticContext = { ...this.context, ast: staticAST };
 
-    // Temporarily set context to static AST
-    const originalAST = this.context.ast;
-    this.context.ast = staticAST;
-
-    const result = await generateCode(this.context);
-
-    // Restore original AST
-    this.context.ast = originalAST;
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(staticContext);
+    const result = await generator.generate();
 
     // Remove JavaScript for pure static
     return {
@@ -60,18 +77,18 @@ export class Analyzer {
       js: '',
       metadata: {
         ...result.metadata,
-        strategy: RenderingStrategy.STATIC,
-        // @ts-ignore - Extended metadata
-        static: { fullyStatic: true }
-      } as any
+        strategy: RenderingStrategy.STATIC
+      }
     };
   }
 
   /**
    * Generate SSR output with streaming capabilities
    */
-  private async generateSSROutput(): Promise<CompilationResult> {
-    const result = await generateCode(this.context);
+  private async generateSSROutput(reactivityGraph: any): Promise<CompilationResult> {
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(this.context);
+    const result = await generator.generate();
 
     // Add SSR-specific metadata and code
     const ssrCode = this.generateSSRRuntimeCode();
@@ -81,26 +98,23 @@ export class Analyzer {
       js: result.js + '\n\n' + ssrCode,
       metadata: {
         ...result.metadata,
-        strategy: RenderingStrategy.STREAM,
-        // @ts-ignore - Extended metadata
-        ssr: {
-          streaming: true,
-          chunks: this.analyzeStreamingChunks()
-        }
-      } as any
+        strategy: RenderingStrategy.STREAM
+      }
     };
   }
 
   /**
    * Generate Islands output with selective hydration
    */
-  private async generateIslandsOutput(): Promise<CompilationResult> {
+  private async generateIslandsOutput(reactivityGraph: any): Promise<CompilationResult> {
     const islands = this.identifyIslands(this.context.ast);
 
     // Generate island-specific code
     const islandCode = this.generateIslandRuntimeCode(islands);
 
-    const result = await generateCode(this.context);
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(this.context);
+    const result = await generator.generate();
 
     return {
       ...result,
@@ -108,21 +122,18 @@ export class Analyzer {
       html: this.markIslandsInHTML(result.html, islands),
       metadata: {
         ...result.metadata,
-        strategy: RenderingStrategy.ISLANDS,
-        // @ts-ignore - Extended metadata
-        islands: {
-          count: islands.length,
-          interactiveRatio: this.calculateInteractiveRatio(islands)
-        }
-      } as any
+        strategy: RenderingStrategy.ISLANDS
+      }
     };
   }
 
   /**
    * Generate SPA output with client-side routing
    */
-  private async generateSPAOutput(): Promise<CompilationResult> {
-    const result = await generateCode(this.context);
+  private async generateSPAOutput(reactivityGraph: any): Promise<CompilationResult> {
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(this.context);
+    const result = await generator.generate();
 
     // Add SPA-specific runtime
     const spaCode = this.generateSPARuntimeCode();
@@ -133,21 +144,18 @@ export class Analyzer {
       js: result.js + '\n\n' + spaCode,
       metadata: {
         ...result.metadata,
-        strategy: RenderingStrategy.SPA,
-        // @ts-ignore - Extended metadata
-        spa: {
-          hasRouting: this.detectRouting(this.context.ast),
-          clientOnly: true
-        }
-      } as any
+        strategy: RenderingStrategy.SPA
+      }
     };
   }
 
   /**
    * Generate Hydrate output for progressive enhancement
    */
-  private async generateHydrateOutput(): Promise<CompilationResult> {
-    const result = await generateCode(this.context);
+  private async generateHydrateOutput(reactivityGraph: any): Promise<CompilationResult> {
+    const { CodeGenerator } = await import('./code-generator');
+    const generator = new CodeGenerator(this.context);
+    const result = await generator.generate();
 
     // Add hydration-specific code
     const hydrateCode = this.generateHydrateRuntimeCode();
@@ -157,13 +165,8 @@ export class Analyzer {
       js: result.js + '\n\n' + hydrateCode,
       metadata: {
         ...result.metadata,
-        strategy: RenderingStrategy.HYDRATE,
-        // @ts-ignore - Extended metadata
-        hydrate: {
-          progressive: true,
-          estimatedHydrationTime: this.estimateHydrationTime()
-        }
-      } as any
+        strategy: RenderingStrategy.HYDRATE
+      }
     };
   }
 

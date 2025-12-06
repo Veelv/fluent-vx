@@ -5,6 +5,28 @@ All notable changes to **Fluent VX** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-12-06
+
+### 🐛 Fixed
+
+- **Development Assets**: CSS and JS now properly inlined in dev mode HTML output
+- **Event Handlers**: Fixed click events and reactive data binding in generated code
+- **Browser Compatibility**: ES6 imports transformed to browser-compatible global usage
+
+### ✨ Added
+
+- **Professional HMR System**: Complete Hot Module Replacement with WebSocket communication
+- **Intelligent Caching**: DevCache and BuildCache with module graph tracking
+- **Module Graph**: Dependency tracking for selective updates and invalidation
+- **HMR Runtime**: Client-side runtime with reconnection and error handling
+
+### 🔧 Changed
+
+- **Code Generator**: Enhanced `generateHTML()` to inline assets during development
+- **Dev Server**: Integrated HMR server with file watching and selective updates
+
+---
+
 ## [0.1.13] - 2025-12-05
 
 ### 🚀 Added

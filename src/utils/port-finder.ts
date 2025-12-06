@@ -96,10 +96,13 @@ export class PortFinder {
       server.once('listening', () => {
         clearTimeout(timeout);
         server.close(() => {
-          resolve({
-            port,
-            available: true
-          });
+          // Add small delay to ensure port is fully released
+          setTimeout(() => {
+            resolve({
+              port,
+              available: true
+            });
+          }, 100);
         });
       });
 

@@ -12,9 +12,9 @@ export interface GeneratedCode {
 /**
  * Generates optimized code from AST and reactivity graph.
  */
-export function generateCode(ast: AST, reactivity: ReactivityGraph): GeneratedCode {
+export function generateCode(ast: AST, reactivity: ReactivityGraph, fullAst?: AST): GeneratedCode {
   const css = generateCSS(ast);
-  const { html, js } = generateView(ast.view.children, reactivity);
+  const { html, js } = generateView(ast.view.children, reactivity, fullAst);
 
   return { html, css, js };
 }

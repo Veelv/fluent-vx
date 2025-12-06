@@ -78,7 +78,7 @@ Fluent VX uses a simple, reactive template syntax:
 #data
   title = "Hello World"
   count = 0
-  items = ["Vue", "React", "Svelte"]
+  items = ["Item 1", "Item 2", "Item 3"]
 #end data
 
 #view
@@ -165,14 +165,6 @@ vx add mdx
 # Add sitemap generation
 vx add sitemap
 ```
-
-## 📚 Documentation
-
-- [Framework API](FRAMEWORK-API.md) - Complete API reference
-- [Configuration Guide](https://fluent-vx.dev/config) - Configuration options
-- [Template Syntax](https://fluent-vx.dev/templates) - Template language
-- [Routing Guide](https://fluent-vx.dev/routing) - File-based routing
-- [Integrations](https://fluent-vx.dev/integrations) - Available integrations
 
 ## 🤝 Contributing
 

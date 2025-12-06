@@ -1,0 +1,56 @@
+// Fluent VX Configuration
+// https://fluent-vx.dev/config
+
+import { defineConfig } from 'fluent-vx';
+
+export default defineConfig({
+  // Output directory for builds
+  outDir: './.vx/.dist',
+
+  // Base path for deployment
+  base: '/',
+
+  // PWA configuration
+  pwa: {
+    enabled: false, // Set to true to enable PWA
+    name: 'My Fluent VX App',
+    shortName: 'Fluent VX',
+    description: 'A modern web application built with Fluent VX',
+    themeColor: '#0070f3',
+    backgroundColor: '#ffffff',
+    display: 'standalone',
+    startUrl: '/',
+    icons: [
+      {
+        src: '/assets/images/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png'
+      },
+      {
+        src: '/assets/images/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png'
+      }
+    ]
+  },
+
+  // Development server options
+  server: {
+    host: '127.0.0.1',
+    open: true,
+    hmr: true
+  },
+
+  // Build optimizations
+  build: {
+    minify: true,
+    sourcemap: false,
+    target: 'es2018',
+    cssCodeSplit: true
+  },
+
+  // Framework integrations
+  integrations: [
+    // Add integrations here
+  ]
+});

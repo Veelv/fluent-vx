@@ -19,14 +19,51 @@ export class Parser {
      const lexer = new Lexer(input);
      this.tokens = lexer.tokenize();
      this.position = 0;
-
-     // Parse each block in order
-     const data = this.tryParseDataBlock();
-     const style = this.tryParseStyleBlock();
-     const view = this.parseViewBlock();
-     const script = this.tryParseScriptBlock();
-     const serverActions = this.tryParseServerActionsBlock();
-
+ 
+     // Initialize defaults
+     let data: DataBlock = { type: 'data', variables: [] };
+     let style: StyleBlock = { type: 'style', content: '' };
+     let view: ViewBlock | null = null;
+     let script: ScriptBlock = { type: 'script', content: '' };
+     let serverActions: ServerAction[] = [];
+ 
+     // Parse blocks in any order
+     while (this.position < this.tokens.length) {
+       // Skip comments
+       if (this.currentToken().type === TokenType.COMMENT) {
+         this.position++;
+         continue;
+       }
+ 
+       if (this.currentToken().type === TokenType.HASH) {
+         const next = this.peek();
+         if (next.value === 'data') {
+           data = this.parseDataBlock();
+         } else if (next.value === 'style') {
+           style = this.parseStyleBlock();
+         } else if (next.value === 'view') {
+           view = this.parseViewBlock();
+         } else if (next.value === 'script') {
+           script = this.parseScriptBlock();
+         } else if (next.value === 'end') {
+           // Skip #end without matching block
+           this.position++;
+         } else {
+           // Unknown block, skip
+           this.position++;
+         }
+       } else if (this.currentToken().type === TokenType.AT && this.peek().value === 'server') {
+         serverActions.push(this.parseServerAction());
+       } else {
+         // Skip other content
+         this.position++;
+       }
+     }
+ 
+     if (!view) {
+       throw new Error('View block is required in .vx files');
+     }
+ 
      return { data, style, view, script, serverActions };
    }
 

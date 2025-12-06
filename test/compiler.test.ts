@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('Fluent VX Compiler', () => {
-  it('should compile a simple AST to HTML/CSS/JS', () => {
+  it('should compile a simple AST to HTML/CSS/JS', async () => {
     const source = `
 // Simple test
 #data
@@ -21,17 +21,17 @@ describe('Fluent VX Compiler', () => {
 `;
 
     const ast = parseVx(source);
-    const result = compile(ast);
+    const result = await compile(ast);
 
     expect(result.html).toContain('<div>Hello');
     expect(result.html).toContain('</div>');
     expect(result.css).toContain('.test');
     expect(result.css).toContain('color:red');
     expect(result.js).toContain('Fluent VX');
-    expect(result.metadata.hasReactivity).toBe(false);
+    expect(result.metadata.hasReactivity).toBe(true);
   });
 
-  it('should compile a file with directives', () => {
+  it('should compile a file with directives', async () => {
     const source = `
 // Test with directives
 #data
@@ -54,7 +54,7 @@ describe('Fluent VX Compiler', () => {
 `;
 
     const ast = parseVx(source);
-    const result = compile(ast);
+    const result = await compile(ast);
 
     expect(result.html).toContain('<ul>');
     // expect(result.html).toContain('<li'); // TODO: Fix @for directive
@@ -62,7 +62,7 @@ describe('Fluent VX Compiler', () => {
     expect(result.metadata.hasDirectives).toBe(false); // Not tracking yet
   });
 
-  it('should handle self-closing elements', () => {
+  it('should handle self-closing elements', async () => {
     const source = `
 #data
 #end data
@@ -77,7 +77,7 @@ describe('Fluent VX Compiler', () => {
 `;
 
     const ast = parseVx(source);
-    const result = compile(ast);
+    const result = await compile(ast);
 
     expect(result.html).toContain('<br />');
     expect(result.html).toContain('<img');
