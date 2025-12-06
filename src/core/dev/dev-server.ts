@@ -8,7 +8,6 @@ import compression from 'compression';
 import serveStatic from 'serve-static';
 import * as fs from 'fs';
 import * as path from 'path';
-import chokidar from 'chokidar';
 import { HMRServer } from '../hmr/hmr';
 import { DevCache, BuildCache } from '../hmr/cache';
 import { ManifestGenerator } from '../manifest/manifest';
@@ -33,7 +32,6 @@ export class DevServer {
   private devCache: DevCache;
   private buildCache: BuildCache;
   private manifestGenerator: ManifestGenerator;
-  private watcher?: chokidar.FSWatcher;
 
   constructor(options: DevServerOptions) {
     this.port = options.port;
@@ -53,8 +51,6 @@ export class DevServer {
     if (this.enableHMR) {
       this.setupHMR();
     }
-
-    this.setupFileWatcher();
   }
 
   private setupMiddleware(): void {
@@ -110,50 +106,6 @@ export class DevServer {
     }
   }
 
-  private setupFileWatcher(): void {
-    const watchPaths = [
-      'src/**/*.{vx,css}',
-      'src/app.vx',
-      'src/pages/**/*'
-    ];
-
-    this.watcher = chokidar.watch(watchPaths, {
-      cwd: this.projectRoot,
-      persistent: true,
-      ignoreInitial: true
-    });
-
-    this.watcher.on('change', async (filePath) => {
-      console.log(`📝 File changed: ${filePath}`);
-
-      try {
-        // Update manifest if needed
-        if (this.manifestGenerator.needsUpdate()) {
-          const moduleGraph = this.devCache.getModuleGraph();
-          this.manifestGenerator.generateDevManifest(moduleGraph);
-        }
-
-        // Handle HMR
-        if (this.enableHMR && this.hmrServer) {
-          const fullPath = path.join(this.projectRoot, filePath);
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          await this.hmrServer.handleFileChange(filePath, content);
-        }
-
-      } catch (error) {
-        console.error('Error handling file change:', error);
-      }
-    });
-
-    this.watcher.on('add', (filePath) => {
-      console.log(`➕ File added: ${filePath}`);
-      // Trigger manifest update for new files
-      if (this.manifestGenerator.needsUpdate()) {
-        const moduleGraph = this.devCache.getModuleGraph();
-        this.manifestGenerator.generateDevManifest(moduleGraph);
-      }
-    });
-  }
 
   private async generateDevHTML(route: string): Promise<string> {
     const manifest = this.manifestGenerator.loadManifest();
@@ -321,10 +273,6 @@ export class DevServer {
   }
 
   async stop(): Promise<void> {
-    if (this.watcher) {
-      await this.watcher.close();
-    }
-
     if (this.hmrServer) {
       this.hmrServer.close();
     }
